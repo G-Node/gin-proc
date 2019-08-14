@@ -2,8 +2,14 @@
 
 set -eu
 
+mkdir -p ${HOME}/.ssh
+ssh-keyscan -H ${GIN_SSH_SERVER} > ${HOME}/.ssh/known_hosts
+
+git config --global user.name "GIN Proc"
+git config --global user.email "proc@g-node.org"
+
 cd /app/backend
-python3 server.py &
+python3 -u server.py &
 bpid=$!
 
 cd /app/frontend
@@ -17,6 +23,7 @@ stopservices() {
 }
 
 trap stopservices SIGINT
+trap stopservices SIGKILL
 
 wait ${bpid} ${fpid}
 echo "Done"
