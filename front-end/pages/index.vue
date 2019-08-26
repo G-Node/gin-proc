@@ -160,7 +160,7 @@
 
 <script>
   import axios from "axios"
-  var API = "http://127.0.0.1:8000"
+  var API = "http://127.0.0.1:8000/api"
 
   export default {
 
@@ -184,10 +184,6 @@
             'name': 'Slack',
             'value': false,
             'icon': 'slack hash'
-          }, {
-            'name': 'Email',
-            'value': false,
-            'icon': 'envelope outline'
           }],
           commitMessage: 'gin-proc is awesome',
         },
@@ -244,10 +240,6 @@
             'name': 'Slack',
             'value': false,
             'icon': 'slack hash'
-          }, {
-            'name': 'Email',
-            'value': false,
-            'icon': 'envelope outline'
           }],
           commitMessage: 'gin-proc is awesome',
           workflow: 'custom',

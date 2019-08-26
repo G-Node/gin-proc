@@ -1,3 +1,4 @@
+aniso8601==7.0.0
 asn1crypto==0.24.0
 astroid==2.2.5
 attrs==19.1.0
@@ -8,6 +9,8 @@ Click==7.0
 cryptography==2.7
 Flask==1.1.1
 Flask-Cors==3.0.8
+Flask-Docs==0.1.2
+Flask-RESTful==0.3.7
 future==0.17.1
 gitdb2==2.0.5
 idna==2.8
@@ -20,6 +23,7 @@ mccabe==0.6.1
 pep8==1.7.1
 pycparser==2.19
 pylint==2.3.1
+pytz==2019.2
 PyYAML==5.1.2
 requests==2.22.0
 six==1.12.0
