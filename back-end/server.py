@@ -25,8 +25,8 @@ app.config['API_DOC_MEMBER'] = ['api', 'platform', 'auth']
 
 ApiDoc(app)
 
-api = Blueprint('api', __name__)
-auth = Blueprint('auth', __name__)
+api = Blueprint('procapi', __name__)
+auth = Blueprint('procauth', __name__)
 platform = Blueprint('platform', __name__)
 
 class User(object):
@@ -165,7 +165,7 @@ def Get_User():
             return user.details()
         except errors.ServerError as e:
             abort(e.status)
-        
+
 
 
 @api.route('/execute', methods=['POST'])
@@ -182,7 +182,7 @@ def Execute_Workflow():
     """
 
     if request.method == "POST":
-        
+
         try:
             return user.run(request)
         except errors.ServerError as e:
