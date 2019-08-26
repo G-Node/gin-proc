@@ -25,8 +25,8 @@ app.config['API_DOC_MEMBER'] = ['api', 'platform', 'auth']
 
 ApiDoc(app)
 
-api = Blueprint('procapi', __name__)
-auth = Blueprint('procauth', __name__)
+api = Blueprint('api', __name__)
+auth = Blueprint('auth', __name__)
 platform = Blueprint('platform', __name__)
 
 class User(object):
