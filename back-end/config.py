@@ -338,15 +338,16 @@ def addNotifications(notifications, data):
 
     for notification in notifications:
         if notification['name'] == 'Slack':
-
             log("info", "Adding notification: {}".format(notification['name']))
+            slackhook = ("https://hooks.slack.com/services/TFZHJ0RC7/"
+                         "BK9MDBKHQ/VvPkhb4q6odutAkjw6t7Ssr3")
 
             data.append(
                 createStep(
                     name='notification',
                     image='plugins/slack',
                     settings={
-                        'webhook': "https://hooks.slack.com/services/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"
+                        'webhook': slackhook
                     }
                 )
             )
@@ -392,27 +393,24 @@ def ensureConfig(
 
     try:
         if not os.path.exists(dronefile) or os.path.getsize(dronefile) <= 0:
-            raise ConfigurationError("CI Config either not found in repo or is corrupt.")
-
+            raise ConfigurationError(
+                "CI Config either not found in repo or is corrupt."
+            )
         else:
-
             log("debug", "Updating already existing CI Configuration.")
-
-            config = []
             with open(dronefile, 'r') as stream:
                 config = yaml.load(stream, Loader=yaml.FullLoader)
 
-                execution_step = [
-                    step for step in config['steps'] if
-                    step['name'] == 'execute'
-                        ][0]
+                execution_step = [step for step in config['steps']
+                                  if step['name'] == 'execute'][0]
 
                 if execution_step['commands'][:len(
                         preparationCommands())] != preparationCommands():
 
                     raise ConfigurationError(
-                        "Existing CI Config does not match correct \
-preparation mechanism for pipeline.")
+                        "Existing CI Config does not match correct "
+                        "preparation mechanism for pipeline."
+                    )
 
             with open(dronefile, 'w') as stream:
 
@@ -440,21 +438,12 @@ preparation mechanism for pipeline.")
     except ConfigurationError as e:
         log('error', e)
         log('info', 'Generating fresh configuration.')
-
-        with open(os.path.join(config_path, '.drone.yml'), 'w') \
-            as new_config:
-            generated_config = generateConfig(
-                    workflow=workflow,
-                    commands=userInputs,
-                    annexFiles=annexFiles,
-                    backPushFiles=backPushFiles,
-                    notifications=notifications
-                    )
-
+        with open(os.path.join(config_path, '.drone.yml'), 'w') as new_config:
+            generated_config = generateConfig(workflow=workflow,
+                                              commands=userInputs,
+                                              annexFiles=annexFiles,
+                                              backPushFiles=backPushFiles,
+                                              notifications=notifications)
             if not generated_config:
                 return False
-            else:
-                yaml.dump(
-                    generated_config,
-                    new_config,
-                    default_flow_style=False)
+            yaml.dump(generated_config, new_config, default_flow_style=False)

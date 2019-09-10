@@ -13,7 +13,6 @@ from datetime import datetime
 
 
 def level():
-
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         return logging.DEBUG
     else:
@@ -23,27 +22,15 @@ def level():
 FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
 
 if 'LOG_DIR' in os.environ:
-
     LOG = True
     FILENAME = os.environ['LOG_DIR']
-
-    logging.basicConfig(
-        filename=FILENAME,
-        format=FORMAT,
-        level=level()
-        )
-
+    logging.basicConfig(filename=FILENAME, format=FORMAT, level=level())
 else:
     LOG = False
-
-    logging.basicConfig(
-        format=FORMAT,
-        level=level()
-        )
+    logging.basicConfig(format=FORMAT, level=level())
 
 
 def log(function, message):
-
     if LOG:
         if function == 'warning':
             logging.warning(message)
@@ -58,13 +45,6 @@ def log(function, message):
         elif function == 'exception':
             logging.exception(message)
     else:
-
-        if function != "debug" or (
-            'DEBUG' in os.environ and os.environ['DEBUG']
-            ):
-
-            print("{1}: [{0}] {2}".format(
-                function.upper(),
-                datetime.now(),
-                message)
-                )
+        if function != "debug" or os.environ.get("DEBUG", None):
+            print("{1}: [{0}] {2}".format(function.upper(), datetime.now(),
+                                          message))
