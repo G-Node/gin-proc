@@ -160,7 +160,7 @@
 
 <script>
   import axios from "axios"
-  var API = "https://proc.gin.g-node.org/api"
+  var API = "https://proc-config.gin.g-node.org/api"
 
   export default {
 
