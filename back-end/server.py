@@ -29,6 +29,7 @@ api = Blueprint('api', __name__)
 auth = Blueprint('auth', __name__)
 platform = Blueprint('platform', __name__)
 
+
 class User(object):
 
     def __init__(self, *args, **kwargs):
@@ -36,37 +37,30 @@ class User(object):
         self.GIN_TOKEN = None
 
     def login(self):
-
         self.username = request.json['username']
         password = request.json['password']
 
         try:
             self.GIN_TOKEN = ensureToken(user.username, password)
             log("debug", 'GIN token ensured.')
-
         except errors.ServerError as e:
             log('critical', e)
-            return (e, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return e, HTTPStatus.INTERNAL_SERVER_ERROR
 
-        if (
-            ensureKeys(self.GIN_TOKEN) and ensureSecrets(self.username)
-                ):
-            return ({'token': self.GIN_TOKEN}, HTTPStatus.OK)
+        if ensureKeys(self.GIN_TOKEN) and ensureSecrets(self.username):
+            return {'token': self.GIN_TOKEN}, HTTPStatus.OK
         else:
-            return ('login failed', HTTPStatus.UNAUTHORIZED)
+            return 'login failed', HTTPStatus.UNAUTHORIZED
 
     def logout(self):
         user.username = None
         user.GIN_TOKEN = None
-        user.DRONE_TOKEN = None
-
-        return ("logged out", HTTPStatus.OK)
+        return "logged out", HTTPStatus.OK
 
     def details(self):
-        return (userData(self.GIN_TOKEN), HTTPStatus.OK)
+        return userData(self.GIN_TOKEN), HTTPStatus.OK
 
     def run(self, request):
-
         try:
             configure(
                 repoName=request.json['repo'],
@@ -82,21 +76,17 @@ class User(object):
                 token=self.GIN_TOKEN,
                 username=self.username
             )
-            return ("Success: workflow pushed to {}".format(
-                            request.json['repo']), HTTPStatus.OK)
-
+            msg = "Success: workflow pushed to {}".format(request.json['repo'])
+            return msg, HTTPStatus.OK
         except errors.ServiceError as e:
-            return (e, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return e, HTTPStatus.INTERNAL_SERVER_ERROR
 
     def repos(self):
-
         return jsonify([
-            {
-                    'value': repo['name'],
-                    'text': self.username + '/' + repo['name']
-            }
+            {'value': repo['name'], 'text': self.username + '/' + repo['name']}
             for repo in getRepos(self.username, self.GIN_TOKEN)
-            ])
+        ])
+
 
 user = User()
 
@@ -135,7 +125,8 @@ def login():
         by `gin-proc` in GIN. In case it doesn't (which is highly likely if
         you are logging in to `gin-proc` for the first time),
         it shall create a fresh key pair for you and install the appropriate
-        key `public key` in GIN so that gin-proc has read/write access to your GIN repos.
+        key `public key` in GIN so that gin-proc has read/write access to your
+        GIN repos.
 
      - #### Ensure Drone Secrets
         Runs a check to ensure that all of your Drone repositories are
@@ -165,24 +156,20 @@ def Get_User():
             return user.details()
         except errors.ServerError as e:
             abort(e.status)
-        
 
 
 @api.route('/execute', methods=['POST'])
 @cross_origin()
 def Execute_Workflow():
-
     """
     Runs the workflow post user's submission from front-end UI.
 
-    @@@
     For complete documentation of execution steps, read
-    [operations doc](https://github.com/G-Node/gin-proc/blob/master/docs/operations.md).
-    @@@
+    https://github.com/G-Node/gin-proc/blob/master/docs/operations.md
     """
 
     if request.method == "POST":
-        
+
         try:
             return user.run(request)
         except errors.ServerError as e:
@@ -192,11 +179,9 @@ def Execute_Workflow():
 @api.route('/repos', methods=['GET'])
 @cross_origin()
 def repositories():
-
     """
     Returns list of user's repositories from GIN.
     """
-
     if request.method == "GET":
         return user.repos()
 
