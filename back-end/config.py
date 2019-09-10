@@ -12,30 +12,28 @@ from logger import log
 from errors import ConfigurationError
 
 
-def preparationCommands():
-
-    """
-    Returns list of exact bash commands required initially in the
-    execution step to prepare workspace for pipeline.
-    """
-
-    return [
-            'eval $(ssh-agent -s)',
-            'mkdir -p /root/.ssh && echo "$SSH_KEY" > \
-/root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa',
-            'mkdir -p /etc/ssh',
-            'echo "StrictHostKeyChecking no" >> \
-/etc/ssh/ssh_config',
-            'ssh-add /root/.ssh/id_rsa',
-            'git config --global user.name "gin-proc"',
-            'git config --global user.email "gin-proc@local"',
-            'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > \
-/root/.ssh/authorized_keys',
-            'if [ -d "$DRONE_REPO_NAME" ]; then cd "$DRONE_REPO_NAME"/ \
-&& git fetch --all && git checkout "$DRONE_COMMIT"; \
-else git clone "$DRONE_GIT_SSH_URL" \
-&& cd "$DRONE_REPO_NAME"/ && pip3 install -r requirements.txt; fi',
-    ]
+# List of shell commands required initially in the execution step to prepare
+# workspace for pipeline.
+prep_commands = (
+    'eval $(ssh-agent -s)',
+    'mkdir -p /root/.ssh',
+    'echo "$SSH_KEY" > /root/.ssh/id_rsa',
+    'chmod 0600 /root/.ssh/id_rsa',
+    'mkdir -p /etc/ssh',
+    'echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config',
+    'ssh-add /root/.ssh/id_rsa',
+    'git config --global user.name "gin-proc"',
+    'git config --global user.email "gin-proc@local"',
+    'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > /root/.ssh/authorized_keys',
+    '''if [ -d "$DRONE_REPO_NAME" ]; then
+           cd "$DRONE_REPO_NAME"/;
+           git fetch --all;
+           git checkout -f "$DRONE_COMMIT";
+       else
+           git clone "$DRONE_GIT_SSH_URL";
+           cd "$DRONE_REPO_NAME"/;
+       fi'''
+)
 
 
 def createVolume(name, path):
@@ -250,7 +248,7 @@ def generateConfig(
                         'SSH_KEY',
                         'DRONE_PRIVATE_SSH_KEY'
                         ),
-                    commands=preparationCommands()
+                    commands=prep_commands
                 ),
                 createStep(
                     name='rebuild-cache',
@@ -398,9 +396,8 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
                 execution_step = [step for step in config['steps']
                                   if step['name'] == 'execute'][0]
 
-                if execution_step['commands'][:len(
-                        preparationCommands())] != preparationCommands():
-
+                pcmds = execution_step["commands"][:len(prep_commands)]
+                if pcmds != prep_commands:
                     raise ConfigurationError(
                         "Existing CI Config does not match correct "
                         "preparation mechanism for pipeline."
@@ -415,8 +412,7 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
                     backPushFiles=backPushFiles,
                     commands=userInputs,
                     data=config['steps'][config['steps'].index(execution_step)]
-                    ['commands'][:len(
-                        preparationCommands())]
+                    ['commands'][:len(prep_commands)]
                 )
 
                 config['steps'] = addNotifications(
