@@ -346,7 +346,7 @@ def configure(repoName, userInputs, backPushFiles, annexFiles, commitMessage,
     """
     First line of action!
 
-    This function is reposible for integrating the entire workflow
+    This function is responsible for integrating the entire workflow
     together and executing the following in chronological order:
 
         1. Fetches the repository data for repo in question.

@@ -364,7 +364,7 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
     Runs following checks:
 
         1. Whether or not a pipeline configuration already exists.
-        2. If it exists, is it corrupt or un-processible?
+        2. If it exists, is it corrupt or un-processable?
         3. If not, do the preparation commands required in
         execution step match our standards.
 
