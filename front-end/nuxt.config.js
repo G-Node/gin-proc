@@ -46,7 +46,7 @@ export default {
    ** See https://axios.nuxtjs.org/options
    */
   axios: {
-    baseURL: 'https://proc.gin.g-node.org/auth'
+    baseURL: 'https://proc-config.gin.g-node.org/auth'
   },
   auth: {
     strategies: {
