@@ -29,7 +29,7 @@ from cryptography.hazmat.backends import default_backend
 GIN_ADDR = os.environ['GIN_SERVER']
 DRONE_ADDR = os.environ['DRONE_SERVER']
 
-PRIV_KEY = 'gin_id_rsa'
+PRIV_KEY = 'gin-proc'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
 
