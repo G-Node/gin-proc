@@ -355,14 +355,8 @@ def addNotifications(notifications, data):
     return data
 
 
-def ensureConfig(
-        config_path,
-        userInputs,
-        workflow='snakemake',
-        annexFiles=[],
-        backPushFiles=[],
-        notifications=[]
-        ):
+def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
+                 backPushFiles=[], notifications=[]):
 
     """
     First line of defense!
