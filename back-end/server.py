@@ -34,31 +34,31 @@ class User(object):
 
     def __init__(self, *args, **kwargs):
         self.username = None
-        self.GIN_TOKEN = None
+        self.gin_token = None
 
     def login(self):
         self.username = request.json['username']
         password = request.json['password']
 
         try:
-            self.GIN_TOKEN = gin_ensure_token(user.username, password)
+            self.gin_token = gin_ensure_token(user.username, password)
             log("debug", 'GIN token ensured.')
         except errors.ServerError as e:
             log('critical', e)
             return e, HTTPStatus.INTERNAL_SERVER_ERROR
 
-        if ensure_key(self.GIN_TOKEN) and drone_ensure_secrets(self.username):
-            return {'token': self.GIN_TOKEN}, HTTPStatus.OK
+        if ensure_key(self.gin_token) and drone_ensure_secrets(self.username):
+            return {'token': self.gin_token}, HTTPStatus.OK
         else:
             return 'login failed', HTTPStatus.UNAUTHORIZED
 
     def logout(self):
         user.username = None
-        user.GIN_TOKEN = None
+        user.gin_token = None
         return "logged out", HTTPStatus.OK
 
     def details(self):
-        return gin_get_user_data(self.GIN_TOKEN), HTTPStatus.OK
+        return gin_get_user_data(self.gin_token), HTTPStatus.OK
 
     def run(self, request):
         try:
@@ -73,7 +73,7 @@ class User(object):
                     request.json['annexFiles'].values()))),
                 output_files=list(filter(None, list(
                     request.json['backpushFiles'].values()))),
-                token=self.GIN_TOKEN,
+                token=self.gin_token,
                 username=self.username
             )
             msg = "Success: workflow pushed to {}".format(request.json['repo'])
@@ -84,7 +84,7 @@ class User(object):
     def repos(self):
         return jsonify([
             {'value': repo['name'], 'text': self.username + '/' + repo['name']}
-            for repo in gin_get_repos(self.username, self.GIN_TOKEN)
+            for repo in gin_get_repos(self.username, self.gin_token)
         ])
 
 
