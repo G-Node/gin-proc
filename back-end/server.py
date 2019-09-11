@@ -58,7 +58,7 @@ class User(object):
         return "logged out", HTTPStatus.OK
 
     def details(self):
-        return gin_get_user_data(self.gin_token), HTTPStatus.OK
+        return gin_get_user_data(self.gin_token)
 
     def run(self, request):
         try:
@@ -149,11 +149,11 @@ def get_user():
     """
     Returns logged-in user's data from GIN.
     """
-    if request.method == "GET":
-        try:
-            return user.details()
-        except errors.ServerError as e:
-            abort(e.status)
+    res = user.details()
+    if res.ok:
+        return res.json()
+
+    return res.text, res.status_code
 
 
 @api.route('/execute', methods=['POST'])

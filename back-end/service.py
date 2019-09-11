@@ -39,7 +39,7 @@ def gin_get_user_data(token):
     Returns logged-in user's data from GIN.
     """
     return requests.get(GIN_ADDR + "/api/v1/user",
-                        headers={'Authorization': f'token {token}'}).json()
+                        headers={'Authorization': f'token {token}'})
 
 
 def gin_ensure_token(username, password):
