@@ -71,6 +71,18 @@ def gin_ensure_token(username, password):
         raise ServerError(e)
 
 
+def drone_enable_repo(repo):
+    """
+    Enables the given repository for automatic building on Drone. Drone
+    automatically creates a hook on GIN for triggering builds on push.
+    """
+    repopath = repo["full_name"]
+    res = requests.post(DRONE_ADDR + f"/api/repos/{repopath}")
+    if res.status_code != HTTPStatus.OK:
+        raise ServerError(f"Failed to enable hook for {repopath}",
+                          HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
 def drone_write_secret(key, repo):
     """
     Writes the key as a secret title `DRONE_PRIVATE_SSH_KEY`
@@ -381,3 +393,9 @@ def configure(repo_name, user_commands, output_files, input_files,
                           notifications=notifications)
         push(clone_path, commit_message)
         clean(clone_path)
+
+    # configuration written; enable repository on Drone
+    drone_enable_repo(repo)
+    # add secrets to new drone repository
+    with open(keypath) as key:
+        drone_write_secret(key.read(), repo)
