@@ -132,7 +132,6 @@ def create_workflow(workflow, commands, user_commands=None):
 
 def generate_config(workflow, commands, input_files, output_files,
                     notifications):
-
     """
     Automates generation of a fresh configuration for Drone
     by adding necessary vanilla state pipeline steps and
@@ -286,7 +285,6 @@ def ensure_config(config_path, user_commands, workflow='snakemake',
     can also be accessed at:
 
     https://github.com/G-Node/gin-proc/blob/master/docs/operations.md
-
     """
     if not input_files:
         input_files = list()
@@ -334,10 +332,7 @@ def ensure_config(config_path, user_commands, workflow='snakemake',
                     data=config['steps']
                 )
 
-                yaml.dump(
-                    config,
-                    stream,
-                    default_flow_style=False)
+                yaml.dump(config, stream, default_flow_style=False)
 
     except ConfigurationError as e:
         log('error', e)
@@ -351,3 +346,18 @@ def ensure_config(config_path, user_commands, workflow='snakemake',
             if not generated_config:
                 return False
             yaml.dump(generated_config, new_config, default_flow_style=False)
+
+
+def create_drone_file(config_path, user_commands, workflow='snakemake',
+                      input_files=None, output_files=None, notifications=None):
+    with open(os.path.join(config_path, '.drone.yml'), 'w') as new_config:
+        generated_config = generate_config(workflow=workflow,
+                                           commands=user_commands,
+                                           input_files=input_files,
+                                           output_files=output_files,
+                                           notifications=notifications)
+        if not generated_config:
+            return False
+        yaml.dump(generated_config, new_config, default_flow_style=False)
+
+    return True

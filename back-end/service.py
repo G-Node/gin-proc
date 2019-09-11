@@ -17,7 +17,7 @@ from shutil import rmtree
 import tempfile
 
 from http import HTTPStatus
-from config import ensure_config
+from config import create_drone_file
 from logger import log
 from subprocess import call
 from errors import ServiceError, ServerError
@@ -379,8 +379,9 @@ def configure(repo_name, user_commands, output_files, input_files,
 
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
-        ensure_config(config_path=clone_path, workflow=workflow,
-                      user_commands=user_commands, input_files=input_files,
-                      output_files=output_files, notifications=notifications)
+        create_drone_file(config_path=clone_path, workflow=workflow,
+                          user_commands=user_commands, input_files=input_files,
+                          output_files=output_files,
+                          notifications=notifications)
         push(clone_path, commit_message)
         clean(clone_path)
