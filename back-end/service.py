@@ -177,7 +177,7 @@ def gin_get_keys(token):
 def gin_ensure_key(token):
     """
     Confirms whether the public key 'gin-proc' is installed
-    on usre's GIN account or not.
+    on user's GIN account or not.
     """
     for key in gin_get_keys(token):
         if key['title'] == PRIV_KEY:
@@ -307,7 +307,7 @@ def gin_get_repo_data(user, repo, token):
     ).json()
 
 
-def clone(repo, author, path):
+def gin_clone(repo, author, path):
     """
     Clones the repository in question in a temporary location (path).
     """
@@ -374,7 +374,7 @@ def configure(repo_name, user_commands, output_files, input_files,
     os.environ['GIT_SSH_COMMAND'] = f"ssh -i {keypath}"
 
     with tempfile.TemporaryDirectory() as temp_clone_path:
-        clone_path = clone(repo, username, temp_clone_path)
+        clone_path = gin_clone(repo, username, temp_clone_path)
         create_drone_file(config_path=clone_path, workflow=workflow,
                           user_commands=user_commands, input_files=input_files,
                           output_files=output_files,
