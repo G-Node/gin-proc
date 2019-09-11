@@ -36,32 +36,8 @@ prep_commands = (
 )
 
 
-def createVolume(name, path):
-
-    """
-    Returns a new volume dictionary.
-    """
-
-    return {'name': name, 'path': path}
-
-
-def createEnv(name, secret):
-
-    """
-    Returns a new environment variable dictionary with name and secret.
-    """
-
-    return {name: {'from_secret': secret}}
-
-
-def createStep(
-        name,
-        image,
-        volumes=None,
-        settings=None,
-        environment=None,
-        commands=None
-        ):
+def create_step(name, image, volumes=None, settings=None, environment=None,
+                commands=None):
 
     """
     Generates a new pipeline step configuration.
@@ -82,7 +58,7 @@ def createStep(
     return PAYLOAD
 
 
-def joindronefiles(files, location=''):
+def join_drone_files(files, location=''):
 
     """
     Join filenames from user's entered list in a single string
@@ -94,7 +70,7 @@ def joindronefiles(files, location=''):
             os.path.join(location, filename)) for filename in files)
 
 
-def addBackPush(files, commands):
+def add_output_files(files, commands):
 
     """
     Adds commands to execution step for pushing the user's output files
@@ -102,7 +78,7 @@ def addBackPush(files, commands):
     """
 
     if len(files) > 0:
-        inputdronefiles = joindronefiles(files)
+        inputdronefiles = join_drone_files(files)
 
         commands.append('TMPLOC=`mktemp -d`')
         commands.append(('mv {} "$TMPLOC"').format(inputdronefiles))
@@ -111,13 +87,13 @@ def addBackPush(files, commands):
         commands.append('git reset --hard')
         commands.append('mkdir "$DRONE_BUILD_NUMBER"')
 
-        inputdronefiles = joindronefiles(files, "$TMPLOC")
+        inputdronefiles = join_drone_files(files, "$TMPLOC")
 
         commands.append('mv {} "$DRONE_BUILD_NUMBER"/'.format(
             inputdronefiles))
 
-        commands.append('git annex add -c annex.largefiles="largerthan=10M" \
-"$DRONE_BUILD_NUMBER"/')
+        commands.append('git annex add -c annex.largefiles="largerthan=10M" '
+                        '"$DRONE_BUILD_NUMBER"/')
         commands.append('git commit "$DRONE_BUILD_NUMBER"/ -m "Back-Push"')
         commands.append('git push origin gin-proc')
         commands.append('git annex copy --to=origin --all')
@@ -125,79 +101,37 @@ def addBackPush(files, commands):
     return commands
 
 
-def addAnnex(files, commands):
-
+def add_input_files(files, commands):
     """
-    Adds bash commands to get annex files required in workflow.
+    Adds commands to 'git annex get' input files to ensure annexed content
     """
+    if len(files) > 0:
+        inputdronefiles = join_drone_files(files)
+        commands.append("git annex init gin-proc")
+        commands.append("git annex get {}".format(inputdronefiles))
 
-    try:
-        if len(files) > 0:
-            inputdronefiles = joindronefiles(files)
-
-            commands.append('git annex init "$DRONE_REPO_NAME"-drone-annexe')
-            commands.append("git annex get {}".format(inputdronefiles))
-
-    except Exception as e:
-        log('exception', e)
-
-    finally:
-        return commands
+    return commands
 
 
-def createWorkflow(workflow, commands, user_commands=None):
-
+def create_workflow(workflow, commands, user_commands=None):
     """
-    Adds approriate bash commands as per user's specified workflow
-    i.e.
-        either Snakemake file's location
-        or Custom commands.
+    Adds appropriate shell commands based on user's specified workflow
     """
-
-    try:
-        if workflow == 'snakemake':
-            if user_commands:
-                commands.append('snakemake --snakefile {}/snakefile'.format(
-                    user_commands[0]))
-            else:
-                commands.append('snakemake')
+    if workflow == 'snakemake':
+        if user_commands:
+            commands.append(
+                f'snakemake --snakefile {user_commands[0]}/snakefile'
+            )
         else:
-            for command in user_commands:
-                commands.append(command)
-
-    except Exception as e:
-        log('exception', e)
-
-    finally:
-        return commands
+            commands.append('snakemake')
+    else:
+        for command in user_commands:
+            commands.append(command)
+    return commands
 
 
-def integrateVolumes(volumes):
-
-    """
-    Returns a new volume dictionary provided name and path values.
-    """
-
-    PAYLOAD = []
-
-    for volume in volumes:
-        PAYLOAD.append(
-            {
-                'name': volume[0],
-                'host': {'path': volume[1]}
-            }
-        )
-
-    return PAYLOAD
-
-
-def generateConfig(
-        workflow,
-        commands,
-        annexFiles,
-        backPushFiles,
-        notifications
-        ):
+def generate_config(workflow, commands, input_files, output_files,
+                    notifications):
 
     """
     Automates generation of a fresh configuration for Drone
@@ -225,44 +159,35 @@ def generateConfig(
         data = {
             'kind': 'pipeline',
             'name': 'gin-proc',
-
-            'clone': {
-                'disable': True
-            },
-
+            'clone': {'disable': True},
             'steps': [
-                createStep(
+                create_step(
                     name='restore-cache',
                     image='drillster/drone-volume-cache',
-                    volumes=[createVolume('cache', '/cache')],
+                    volumes=[{'name': 'cache', 'path': '/cache'}],
                     settings={
                         'restore': True,
                         'mount': '/drone/src'
                         },
                 ),
-                createStep(
+                create_step(
                     name='execute',
                     image='falconshock/gin-proc:micro-test',
-                    volumes=[createVolume('repo', '/repo')],
-                    environment=createEnv(
-                        'SSH_KEY',
-                        'DRONE_PRIVATE_SSH_KEY'
-                        ),
+                    volumes=[{'name': 'repo', 'path': '/repo'}],
+                    environment={
+                        'SSH_KEY': {'from_secret': 'DRONE_PRIVATE_SSH_KEY'}
+                    },
                     commands=prep_commands
                 ),
-                createStep(
+                create_step(
                     name='rebuild-cache',
                     image='drillster/drone-volume-cache',
-                    volumes=[createVolume('cache', '/cache')],
-                    settings={
-                        'rebuild': True,
-                        'mount': '/drone/src'
-                        },
+                    volumes=[{'name': 'cache', 'path': '/cache'}],
+                    settings={'rebuild': True, 'mount': '/drone/src'},
                 ),
             ],
-            'volumes': integrateVolumes([
-                ('cache', '/gin-proc/cache'),
-                ]),
+            'volumes': [{'name': 'cache',
+                         'host': {'path': '/gin-proc/cache'}}],
             'trigger': {
                 'branch': ['master'],
                 'event': ['push'],
@@ -270,15 +195,15 @@ def generateConfig(
             }
         }
 
-        data['steps'][1]['commands'] = modifyConfigFiles(
+        data['steps'][1]['commands'] = modify_config_files(
             workflow=workflow,
-            annexFiles=annexFiles,
-            backPushFiles=backPushFiles,
+            input_files=input_files,
+            output_files=output_files,
             commands=commands,
             data=data['steps'][1]['commands']
         )
 
-        data['steps'] = addNotifications(
+        data['steps'] = add_notifications(
             notifications=notifications,
             data=data['steps']
         )
@@ -292,42 +217,27 @@ def generateConfig(
         return False
 
 
-def modifyConfigFiles(
-        data,
-        annexFiles,
-        workflow,
-        backPushFiles,
-        commands
-        ):
-
+def modify_config_files(data, input_files, workflow, output_files, commands):
     """
     Modifies the workflow and notification steps as required
     on existing pipeline configuration.
     """
-
     try:
         log("debug", "Adding user's files.")
-
-        data = addAnnex(annexFiles, data)
-
-        data = createWorkflow(workflow, data, commands)
-
-        data = addBackPush(backPushFiles, data)
-
+        data = add_input_files(input_files, data)
+        data = create_workflow(workflow, data, commands)
+        data = add_output_files(output_files, data)
         return data
-
     except Exception as e:
         log('exception', e)
 
 
-def addNotifications(notifications, data):
-
+def add_notifications(notifications, data):
     """
     Adds additional pipeline step for notifying the user
     post completion of build job on service of choice
     - mostly Slack.
     """
-
     notifications = [n for n in notifications if n['value']]
 
     for step in data:
@@ -341,7 +251,7 @@ def addNotifications(notifications, data):
                          "BK9MDBKHQ/VvPkhb4q6odutAkjw6t7Ssr3")
 
             data.append(
-                createStep(
+                create_step(
                     name='notification',
                     image='plugins/slack',
                     settings={
@@ -353,9 +263,8 @@ def addNotifications(notifications, data):
     return data
 
 
-def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
-                 backPushFiles=[], notifications=[]):
-
+def ensure_config(config_path, user_commands, workflow='snakemake',
+                  input_files=None, output_files=None, notifications=None):
     """
     First line of defense!
 
@@ -369,7 +278,7 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
     Resolutions to above checks:
 
         For case 1: Initiates generation of a fresh configuration, if doesn't.
-        For cases 2 and 3: Raises error and initiates overriting of existing
+        For cases 2 and 3: Raises error and initiates overwriting of existing
         configuration with a yet fresh one -- this will delete user's
         manual changes to configuration.
 
@@ -379,7 +288,12 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
     https://github.com/G-Node/gin-proc/blob/master/docs/operations.md
 
     """
-
+    if not input_files:
+        input_files = list()
+    if not output_files:
+        output_files = list()
+    if not notifications:
+        notifications = list()
     dronefile = os.path.join(config_path, '.drone.yml')
     execution_step = None
 
@@ -406,16 +320,16 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
             with open(dronefile, 'w') as stream:
 
                 config['steps'][config['steps'].index(
-                    execution_step)]['commands'] = modifyConfigFiles(
+                    execution_step)]['commands'] = modify_config_files(
                     workflow=workflow,
-                    annexFiles=annexFiles,
-                    backPushFiles=backPushFiles,
-                    commands=userInputs,
+                    input_files=input_files,
+                    output_files=output_files,
+                    commands=user_commands,
                     data=config['steps'][config['steps'].index(execution_step)]
                     ['commands'][:len(prep_commands)]
                 )
 
-                config['steps'] = addNotifications(
+                config['steps'] = add_notifications(
                     notifications=notifications,
                     data=config['steps']
                 )
@@ -429,11 +343,11 @@ def ensureConfig(config_path, userInputs, workflow='snakemake', annexFiles=[],
         log('error', e)
         log('info', 'Generating fresh configuration.')
         with open(os.path.join(config_path, '.drone.yml'), 'w') as new_config:
-            generated_config = generateConfig(workflow=workflow,
-                                              commands=userInputs,
-                                              annexFiles=annexFiles,
-                                              backPushFiles=backPushFiles,
-                                              notifications=notifications)
+            generated_config = generate_config(workflow=workflow,
+                                               commands=user_commands,
+                                               input_files=input_files,
+                                               output_files=output_files,
+                                               notifications=notifications)
             if not generated_config:
                 return False
             yaml.dump(generated_config, new_config, default_flow_style=False)

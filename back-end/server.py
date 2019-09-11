@@ -7,8 +7,8 @@
 # ------------------------------------------------------------------#
 
 
-from service import configure, ensureToken, ensureKeys, getRepos, userData
-from service import log, ensureSecrets
+from service import (configure, gin_ensure_token, ensure_key, gin_get_repos,
+                     gin_get_user_data, log, drone_ensure_secrets)
 from flask import Flask, request, abort, jsonify, Blueprint
 from http import HTTPStatus
 
@@ -41,13 +41,13 @@ class User(object):
         password = request.json['password']
 
         try:
-            self.GIN_TOKEN = ensureToken(user.username, password)
+            self.GIN_TOKEN = gin_ensure_token(user.username, password)
             log("debug", 'GIN token ensured.')
         except errors.ServerError as e:
             log('critical', e)
             return e, HTTPStatus.INTERNAL_SERVER_ERROR
 
-        if ensureKeys(self.GIN_TOKEN) and ensureSecrets(self.username):
+        if ensure_key(self.GIN_TOKEN) and drone_ensure_secrets(self.username):
             return {'token': self.GIN_TOKEN}, HTTPStatus.OK
         else:
             return 'login failed', HTTPStatus.UNAUTHORIZED
@@ -58,21 +58,21 @@ class User(object):
         return "logged out", HTTPStatus.OK
 
     def details(self):
-        return userData(self.GIN_TOKEN), HTTPStatus.OK
+        return gin_get_user_data(self.GIN_TOKEN), HTTPStatus.OK
 
     def run(self, request):
         try:
             configure(
-                repoName=request.json['repo'],
+                repo_name=request.json['repo'],
                 notifications=request.json['notifications'],
-                commitMessage=request.json['commitMessage'],
-                userInputs=list(filter(None, list(
+                commit_message=request.json['commitMessage'],
+                user_commands=list(filter(None, list(
                         request.json['userInputs'].values()))),
                 workflow=request.json['workflow'],
-                annexFiles=list(filter(None, list(
-                        request.json['annexFiles'].values()))),
-                backPushFiles=list(filter(None, list(
-                        request.json['backpushFiles'].values()))),
+                input_files=list(filter(None, list(
+                    request.json['annexFiles'].values()))),
+                output_files=list(filter(None, list(
+                    request.json['backpushFiles'].values()))),
                 token=self.GIN_TOKEN,
                 username=self.username
             )
@@ -84,7 +84,7 @@ class User(object):
     def repos(self):
         return jsonify([
             {'value': repo['name'], 'text': self.username + '/' + repo['name']}
-            for repo in getRepos(self.username, self.GIN_TOKEN)
+            for repo in gin_get_repos(self.username, self.GIN_TOKEN)
         ])
 
 
@@ -145,12 +145,10 @@ def login():
 
 
 @auth.route('/user', methods=['GET'])
-def Get_User():
-
+def get_user():
     """
     Returns logged-in user's data from GIN.
     """
-
     if request.method == "GET":
         try:
             return user.details()
@@ -160,7 +158,7 @@ def Get_User():
 
 @api.route('/execute', methods=['POST'])
 @cross_origin()
-def Execute_Workflow():
+def execute_workflow():
     """
     Runs the workflow post user's submission from front-end UI.
 
