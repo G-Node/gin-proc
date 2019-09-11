@@ -93,19 +93,15 @@ user = User()
 
 @auth.route('/logout', methods=['POST'])
 def logout():
-
     """
     Clears user's credentials including auth token for the session.
     """
-
-    if request.method == "POST":
-        return user.logout()
+    return user.logout()
 
 
 @auth.route('/login', methods=['POST'])
 @cross_origin()
 def login():
-
     """
     Authenticates user with their GIN credentials.
 
@@ -136,12 +132,10 @@ def login():
         build jobs inside its runners.
     @@@
     """
-
-    if request.method == "POST":
-        try:
-            return user.login()
-        except errors.ServerError as e:
-            abort(e.status)
+    try:
+        return user.login()
+    except errors.ServerError as e:
+        abort(e.status)
 
 
 @auth.route('/user', methods=['GET'])
@@ -165,13 +159,10 @@ def execute_workflow():
     For complete documentation of execution steps, read
     https://github.com/G-Node/gin-proc/blob/master/docs/operations.md
     """
-
-    if request.method == "POST":
-
-        try:
-            return user.run(request)
-        except errors.ServerError as e:
-            abort(e.status)
+    try:
+        return user.run(request)
+    except errors.ServerError as e:
+        abort(e.status)
 
 
 @api.route('/repos', methods=['GET'])
@@ -180,8 +171,7 @@ def repositories():
     """
     Returns list of user's repositories from GIN.
     """
-    if request.method == "GET":
-        return user.repos()
+    return user.repos()
 
 
 app.register_blueprint(api, url_prefix='/api')
