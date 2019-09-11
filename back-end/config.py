@@ -78,19 +78,18 @@ def add_output_files(files, commands):
     """
 
     if len(files) > 0:
-        inputdronefiles = join_drone_files(files)
+        input_drone_files = join_drone_files(files)
 
         commands.append('TMPLOC=`mktemp -d`')
-        commands.append(('mv {} "$TMPLOC"').format(inputdronefiles))
+        commands.append(f'mv {input_drone_files} "$TMPLOC"')
 
         commands.append('git checkout gin-proc || git checkout -b gin-proc')
         commands.append('git reset --hard')
         commands.append('mkdir "$DRONE_BUILD_NUMBER"')
 
-        inputdronefiles = join_drone_files(files, "$TMPLOC")
+        input_drone_files = join_drone_files(files, "$TMPLOC")
 
-        commands.append('mv {} "$DRONE_BUILD_NUMBER"/'.format(
-            inputdronefiles))
+        commands.append(f'mv {input_drone_files} "$DRONE_BUILD_NUMBER"/')
 
         commands.append('git annex add -c annex.largefiles="largerthan=10M" '
                         '"$DRONE_BUILD_NUMBER"/')
@@ -106,9 +105,9 @@ def add_input_files(files, commands):
     Adds commands to 'git annex get' input files to ensure annexed content
     """
     if len(files) > 0:
-        inputdronefiles = join_drone_files(files)
+        input_drone_files = join_drone_files(files)
         commands.append("git annex init gin-proc")
-        commands.append("git annex get {}".format(inputdronefiles))
+        commands.append(f"git annex get {input_drone_files}")
 
     return commands
 
