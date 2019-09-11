@@ -77,7 +77,10 @@ def drone_enable_repo(repo):
     automatically creates a hook on GIN for triggering builds on push.
     """
     repopath = repo["full_name"]
-    res = requests.post(DRONE_ADDR + f"/api/repos/{repopath}")
+    headers = {'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN']),
+               'Content-Type': "application/json"}
+    res = requests.post(DRONE_ADDR + f"/api/repos/{repopath}",
+                        headers=headers)
     if res.status_code != HTTPStatus.OK:
         raise ServerError(f"Failed to enable hook for {repopath}",
                           HTTPStatus.INTERNAL_SERVER_ERROR)
