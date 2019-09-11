@@ -175,7 +175,7 @@ def generate_config(workflow, commands, input_files, output_files,
                     environment={
                         'SSH_KEY': {'from_secret': 'DRONE_PRIVATE_SSH_KEY'}
                     },
-                    commands=prep_commands
+                    commands=list(prep_commands)
                 ),
                 create_step(
                     name='rebuild-cache',
