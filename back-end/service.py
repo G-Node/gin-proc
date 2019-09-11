@@ -153,7 +153,7 @@ def drone_ensure_secrets(user):
     for repo in repos:
         if not repo["active"]:
             continue
-        repopath = repo["slug"]
+        repopath = repo["slug"]  # Drone equivalent for repository full_name
         secrets = requests.get(
             DRONE_ADDR + f"/api/repos/{repopath}/secrets",
             headers={'Authorization': 'Bearer {}'.format(
