@@ -330,7 +330,7 @@ def ensure_config(config_path, user_commands, workflow='snakemake',
                     data=config['steps']
                 )
 
-                yaml.dump(config, stream, default_flow_style=False)
+                yaml.dump(config, stream, default_flow_style=False, width=1000)
 
     except ConfigurationError as e:
         log('error', e)
@@ -343,7 +343,8 @@ def ensure_config(config_path, user_commands, workflow='snakemake',
                                                notifications=notifications)
             if not generated_config:
                 return False
-            yaml.dump(generated_config, new_config, default_flow_style=False)
+            yaml.dump(generated_config, new_config, default_flow_style=False,
+                      width=1000)
 
 
 def create_drone_file(config_path, user_commands, workflow='snakemake',
@@ -356,6 +357,7 @@ def create_drone_file(config_path, user_commands, workflow='snakemake',
                                            notifications=notifications)
         if not generated_config:
             return False
-        yaml.dump(generated_config, new_config, default_flow_style=False)
+        yaml.dump(generated_config, new_config, default_flow_style=False,
+                  width=1000)
 
     return True
