@@ -71,14 +71,15 @@ def gin_ensure_token(username, password):
         raise ServerError(e)
 
 
-def drone_write_secret(key, repo, user):
+def drone_write_secret(key, repo):
     """
     Writes the key as a secret title `DRONE_PRIVATE_SSH_KEY`
     to specified repository in Drone.
     """
+    repopath = repo["full_name"]
     try:
         res = requests.post(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
+            DRONE_ADDR + f"/api/repos/{repopath}/secrets",
             headers={
                 'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN']),
                 'Content-Type': "application/json"
@@ -101,17 +102,14 @@ def drone_write_secret(key, repo, user):
                           HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def drone_update_secret(secret, data, user, repo):
+def drone_update_secret(secret, data, repopath):
     """
     Ensure the secret DRONE_PRIVATE_SSH_KEY already exists,
     and if true, update the secret with latest key.
     Else, register the key as a secret.
     """
     res = requests.patch(
-        DRONE_ADDR + "/api/repos/{user}/{repo}/secrets/{secret}".format(
-            user=user,
-            repo=repo,
-            secret=secret),
+        DRONE_ADDR + f"/api/repos/{repopath}/secrets/{secret}",
         headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']},
         json={
             "data": data,
@@ -119,10 +117,10 @@ def drone_update_secret(secret, data, user, repo):
         })
 
     if res.status_code == HTTPStatus.OK:
-        log('debug', 'Secret updated in `{}`'.format(repo))
+        log('debug', f"Secret updated in '{repopath}'")
         return True
 
-    raise ServerError('Secret could not be updated in `{}`'.format(repo),
+    raise ServerError(f"Secret could not be updated in '{repopath}'",
                       HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
@@ -140,10 +138,12 @@ def drone_ensure_secrets(user):
             'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
         }).json()
 
-    for repo in [repo for repo in repos if repo['active']]:
+    for repo in repos:
+        if not repo["active"]:
+            continue
+        repopath = repo["slug"]
         secrets = requests.get(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(
-                user, repo['name']),
+            DRONE_ADDR + f"/api/repos/{repopath}/secrets",
             headers={'Authorization': 'Bearer {}'.format(
                 os.environ['DRONE_TOKEN'])}
         ).json()
@@ -151,19 +151,15 @@ def drone_ensure_secrets(user):
         with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
             for secret in secrets:
                 if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
-                    log('debug', 'Secret found in repo `{}`'.format(
-                        repo['name']))
+                    log('debug', f"Secret found in repo '{repopath}'")
 
-                    drone_update_secret(
-                        secret=secret['name'],
-                        data=key.read(),
-                        repo=repo['name'],
-                        user=user
-                    )
+                    drone_update_secret(secret=secret['name'],
+                                        data=key.read(),
+                                        repopath=repopath)
                     break
 
             log('debug', 'Secret not found in `{}`'.format(repo['name']))
-            drone_write_secret(key.read(), repo['name'], user)
+            drone_write_secret(key.read(), repo)
 
     return True
 
