@@ -25,14 +25,14 @@ prep_commands = (
     'git config --global user.name "gin-proc"',
     'git config --global user.email "gin-proc@local"',
     'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > /root/.ssh/authorized_keys',
-    '''if [ -d "$DRONE_REPO_NAME" ]; then
-           cd "$DRONE_REPO_NAME"/;
-           git fetch --all;
-           git checkout -f "$DRONE_COMMIT";
-       else
-           git clone "$DRONE_GIT_SSH_URL";
-           cd "$DRONE_REPO_NAME"/;
-       fi'''
+    ('if [ -d "$DRONE_REPO_NAME" ]; then'
+     '  cd "$DRONE_REPO_NAME"/;'
+     '  git fetch --all;'
+     '  git checkout -f "$DRONE_COMMIT";'
+     'else'
+     '  git clone "$DRONE_GIT_SSH_URL";'
+     '  cd "$DRONE_REPO_NAME"/;'
+     'fi')
 )
 
 
