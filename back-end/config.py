@@ -26,13 +26,13 @@ prep_commands = (
     'git config --global user.email "gin-proc@local"',
     'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > /root/.ssh/authorized_keys',
     ('if [ -d "$DRONE_REPO_NAME" ]; then'
-     '  cd "$DRONE_REPO_NAME"/;'
-     '  git fetch --all;'
-     '  git checkout -f "$DRONE_COMMIT";'
-     'else'
-     '  git clone "$DRONE_GIT_SSH_URL";'
-     '  cd "$DRONE_REPO_NAME"/;'
-     'fi')
+     ' cd "$DRONE_REPO_NAME"/;'
+     ' git fetch --all;'
+     ' git checkout -f "$DRONE_COMMIT";'
+     ' else'
+     ' git clone "$DRONE_GIT_SSH_URL";'
+     ' cd "$DRONE_REPO_NAME"/;'
+     ' fi')
 )
 
 
@@ -315,15 +315,14 @@ def ensure_config(config_path, user_commands, workflow='snakemake',
                     )
 
             with open(dronefile, 'w') as stream:
-
-                config['steps'][config['steps'].index(
-                    execution_step)]['commands'] = modify_config_files(
+                exec_step_idx = config['steps'].index(execution_step)
+                exec_step = config['steps'][exec_step_idx]
+                exec_step['commands'] = modify_config_files(
                     workflow=workflow,
                     input_files=input_files,
                     output_files=output_files,
                     commands=user_commands,
-                    data=config['steps'][config['steps'].index(execution_step)]
-                    ['commands'][:len(prep_commands)]
+                    data=exec_step['commands'][:len(prep_commands)]
                 )
 
                 config['steps'] = add_notifications(
