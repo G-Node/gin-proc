@@ -7,8 +7,8 @@
 # ------------------------------------------------------------------#
 
 
-from service import configure, ensureToken, ensureKeys, getRepos, userData
-from service import log, ensureSecrets
+from service import (configure, gin_ensure_token, ensure_key, gin_get_repos,
+                     gin_get_user_data, log, drone_ensure_secrets)
 from flask import Flask, request, abort, jsonify, Blueprint
 from http import HTTPStatus
 
@@ -34,46 +34,46 @@ class User(object):
 
     def __init__(self, *args, **kwargs):
         self.username = None
-        self.GIN_TOKEN = None
+        self.gin_token = None
 
     def login(self):
         self.username = request.json['username']
         password = request.json['password']
 
         try:
-            self.GIN_TOKEN = ensureToken(user.username, password)
+            self.gin_token = gin_ensure_token(user.username, password)
             log("debug", 'GIN token ensured.')
         except errors.ServerError as e:
             log('critical', e)
             return e, HTTPStatus.INTERNAL_SERVER_ERROR
 
-        if ensureKeys(self.GIN_TOKEN) and ensureSecrets(self.username):
-            return {'token': self.GIN_TOKEN}, HTTPStatus.OK
+        if ensure_key(self.gin_token) and drone_ensure_secrets(self.username):
+            return {'token': self.gin_token}, HTTPStatus.OK
         else:
             return 'login failed', HTTPStatus.UNAUTHORIZED
 
     def logout(self):
         user.username = None
-        user.GIN_TOKEN = None
+        user.gin_token = None
         return "logged out", HTTPStatus.OK
 
     def details(self):
-        return userData(self.GIN_TOKEN), HTTPStatus.OK
+        return gin_get_user_data(self.gin_token)
 
     def run(self, request):
         try:
             configure(
-                repoName=request.json['repo'],
+                repo_name=request.json['repo'],
                 notifications=request.json['notifications'],
-                commitMessage=request.json['commitMessage'],
-                userInputs=list(filter(None, list(
+                commit_message=request.json['commitMessage'],
+                user_commands=list(filter(None, list(
                         request.json['userInputs'].values()))),
                 workflow=request.json['workflow'],
-                annexFiles=list(filter(None, list(
-                        request.json['annexFiles'].values()))),
-                backPushFiles=list(filter(None, list(
-                        request.json['backpushFiles'].values()))),
-                token=self.GIN_TOKEN,
+                input_files=list(filter(None, list(
+                    request.json['annexFiles'].values()))),
+                output_files=list(filter(None, list(
+                    request.json['backpushFiles'].values()))),
+                token=self.gin_token,
                 username=self.username
             )
             msg = "Success: workflow pushed to {}".format(request.json['repo'])
@@ -84,7 +84,7 @@ class User(object):
     def repos(self):
         return jsonify([
             {'value': repo['name'], 'text': self.username + '/' + repo['name']}
-            for repo in getRepos(self.username, self.GIN_TOKEN)
+            for repo in gin_get_repos(self.username, self.gin_token)
         ])
 
 
@@ -93,19 +93,15 @@ user = User()
 
 @auth.route('/logout', methods=['POST'])
 def logout():
-
     """
     Clears user's credentials including auth token for the session.
     """
-
-    if request.method == "POST":
-        return user.logout()
+    return user.logout()
 
 
 @auth.route('/login', methods=['POST'])
 @cross_origin()
 def login():
-
     """
     Authenticates user with their GIN credentials.
 
@@ -136,44 +132,37 @@ def login():
         build jobs inside its runners.
     @@@
     """
-
-    if request.method == "POST":
-        try:
-            return user.login()
-        except errors.ServerError as e:
-            abort(e.status)
+    try:
+        return user.login()
+    except errors.ServerError as e:
+        abort(e.status)
 
 
 @auth.route('/user', methods=['GET'])
-def Get_User():
-
+def get_user():
     """
     Returns logged-in user's data from GIN.
     """
+    res = user.details()
+    if res.ok:
+        return res.json()
 
-    if request.method == "GET":
-        try:
-            return user.details()
-        except errors.ServerError as e:
-            abort(e.status)
+    return res.text, res.status_code
 
 
 @api.route('/execute', methods=['POST'])
 @cross_origin()
-def Execute_Workflow():
+def execute_workflow():
     """
     Runs the workflow post user's submission from front-end UI.
 
     For complete documentation of execution steps, read
     https://github.com/G-Node/gin-proc/blob/master/docs/operations.md
     """
-
-    if request.method == "POST":
-
-        try:
-            return user.run(request)
-        except errors.ServerError as e:
-            abort(e.status)
+    try:
+        return user.run(request)
+    except errors.ServerError as e:
+        abort(e.status)
 
 
 @api.route('/repos', methods=['GET'])
@@ -182,8 +171,7 @@ def repositories():
     """
     Returns list of user's repositories from GIN.
     """
-    if request.method == "GET":
-        return user.repos()
+    return user.repos()
 
 
 app.register_blueprint(api, url_prefix='/api')

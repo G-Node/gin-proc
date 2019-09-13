@@ -17,7 +17,7 @@ from shutil import rmtree
 import tempfile
 
 from http import HTTPStatus
-from config import ensureConfig
+from config import create_drone_file
 from logger import log
 from subprocess import call
 from errors import ServiceError, ServerError
@@ -29,22 +29,20 @@ from cryptography.hazmat.backends import default_backend
 GIN_ADDR = os.environ['GIN_SERVER']
 DRONE_ADDR = os.environ['DRONE_SERVER']
 
-PRIV_KEY = 'gin_id_rsa'
+PRIV_KEY = 'gin-proc'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
 
 
-def userData(token):
+def gin_get_user_data(token):
     """
     Returns logged-in user's data from GIN.
     """
-    return requests.get(
-        GIN_ADDR + "/api/v1/user",
-        headers={'Authorization': 'token {}'.format(token)}
-    ).json()
+    return requests.get(GIN_ADDR + "/api/v1/user",
+                        headers={'Authorization': f'token {token}'})
 
 
-def ensureToken(username, password):
+def gin_ensure_token(username, password):
     """
     Retrieves the personal access token `gin-proc`
     from user's GIN account to be used further in session.
@@ -71,14 +69,30 @@ def ensureToken(username, password):
         raise ServerError(e)
 
 
-def writeSecret(key, repo, user):
+def drone_enable_repo(repo):
+    """
+    Enables the given repository for automatic building on Drone. Drone
+    automatically creates a hook on GIN for triggering builds on push.
+    """
+    repopath = repo["full_name"]
+    headers = {'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN']),
+               'Content-Type': "application/json"}
+    res = requests.post(DRONE_ADDR + f"/api/repos/{repopath}",
+                        headers=headers)
+    if res.status_code != HTTPStatus.OK:
+        raise ServerError(f"Failed to enable hook for {repopath}",
+                          HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+def drone_write_secret(key, repo):
     """
     Writes the key as a secret title `DRONE_PRIVATE_SSH_KEY`
     to specified repository in Drone.
     """
+    repopath = repo["full_name"]
     try:
         res = requests.post(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
+            DRONE_ADDR + f"/api/repos/{repopath}/secrets",
             headers={
                 'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN']),
                 'Content-Type': "application/json"
@@ -101,17 +115,14 @@ def writeSecret(key, repo, user):
                           HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def updateSecret(secret, data, user, repo):
+def drone_update_secret(secret, data, repopath):
     """
     Ensure the secret DRONE_PRIVATE_SSH_KEY already exists,
     and if true, update the secret with latest key.
     Else, register the key as a secret.
     """
     res = requests.patch(
-        DRONE_ADDR + "/api/repos/{user}/{repo}/secrets/{secret}".format(
-            user=user,
-            repo=repo,
-            secret=secret),
+        DRONE_ADDR + f"/api/repos/{repopath}/secrets/{secret}",
         headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']},
         json={
             "data": data,
@@ -119,14 +130,14 @@ def updateSecret(secret, data, user, repo):
         })
 
     if res.status_code == HTTPStatus.OK:
-        log('debug', 'Secret updated in `{}`'.format(repo))
+        log('debug', f"Secret updated in '{repopath}'")
         return True
 
-    raise ServerError('Secret could not be updated in `{}`'.format(repo),
+    raise ServerError(f"Secret could not be updated in '{repopath}'",
                       HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def ensureSecrets(user):
+def drone_ensure_secrets(user):
     """
     Runs a check on all of user's ACTIVATED Drone repositories
     if each of them has the secret DRONE_PRIVATE_SSH_KEY and is updated
@@ -140,10 +151,12 @@ def ensureSecrets(user):
             'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
         }).json()
 
-    for repo in [repo for repo in repos if repo['active']]:
+    for repo in repos:
+        if not repo["active"]:
+            continue
+        repopath = repo["slug"]  # Drone equivalent for repository full_name
         secrets = requests.get(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(
-                user, repo['name']),
+            DRONE_ADDR + f"/api/repos/{repopath}/secrets",
             headers={'Authorization': 'Bearer {}'.format(
                 os.environ['DRONE_TOKEN'])}
         ).json()
@@ -151,24 +164,20 @@ def ensureSecrets(user):
         with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
             for secret in secrets:
                 if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
-                    log('debug', 'Secret found in repo `{}`'.format(
-                        repo['name']))
+                    log('debug', f"Secret found in repo '{repopath}'")
 
-                    updateSecret(
-                        secret=secret['name'],
-                        data=key.read(),
-                        repo=repo['name'],
-                        user=user
-                    )
+                    drone_update_secret(secret=secret['name'],
+                                        data=key.read(),
+                                        repopath=repopath)
                     break
 
             log('debug', 'Secret not found in `{}`'.format(repo['name']))
-            writeSecret(key.read(), repo['name'], user)
+            drone_write_secret(key.read(), repo)
 
     return True
 
 
-def getKeysFromServer(token):
+def gin_get_keys(token):
     """
     Fetches all SSH public keys from user's GIN account.
     """
@@ -178,21 +187,21 @@ def getKeysFromServer(token):
     ).json()
 
 
-def ensureKeysOnServer(token):
+def gin_ensure_key(token):
     """
     Confirms whether the public key 'gin-proc' is installed
-    on usre's GIN account or not.
+    on user's GIN account or not.
     """
-    for key in getKeysFromServer(token):
+    for key in gin_get_keys(token):
         if key['title'] == PRIV_KEY:
             return True
 
 
-def deleteKeysOnServer(token):
+def gin_delete_key(token):
     """
     Deletes key 'gin-proc' from user's GIN account.
     """
-    for key in getKeysFromServer(token):
+    for key in gin_get_keys(token):
         if key['title'] == PRIV_KEY:
             response = requests.delete(
                 key['url'],
@@ -210,14 +219,14 @@ def deleteKeysOnServer(token):
             )
 
 
-def ensureKeysOnLocal(path):
+def proc_ensure_key(path):
     """
     Confirms whether SSH Private key exists locally or not.
     """
     return os.path.exists(os.path.join(path, PRIV_KEY))
 
 
-def installFreshKeys(SSH_PATH, token):
+def install_key(SSH_PATH, token):
     """
     Generates a fresh pair of public and private keys.
     And installs them on user's GIN account.
@@ -255,7 +264,7 @@ def installFreshKeys(SSH_PATH, token):
     log('info', 'Fresh key pair installed with pub key {}'.format(PUB_KEY))
 
 
-def ensureKeys(token):
+def ensure_key(token):
     """
     Runs following checks for required SSH key pair:
 
@@ -272,26 +281,26 @@ def ensureKeys(token):
         locally and on server.
     """
     try:
-        if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+        if gin_ensure_key(token) and proc_ensure_key(SSH_PATH):
             log("debug", "Keys ensured both on server and locally.")
             return True
-        elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
+        elif gin_ensure_key(token) and not proc_ensure_key(SSH_PATH):
             log("debug", "Key is installed on the server but not locally.")
-            deleteKeysOnServer(token)
-        elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+            gin_delete_key(token)
+        elif not gin_ensure_key(token) and proc_ensure_key(SSH_PATH):
             log("debug", "Key is installed locally but not on the server.")
             os.remove(os.path.join(SSH_PATH, PRIV_KEY))
             os.remove(os.path.join(SSH_PATH, PUB_KEY))
             log("warning", "Removed local keys.")
 
-        installFreshKeys(SSH_PATH, token)
+        install_key(SSH_PATH, token)
     except Exception:  # TODO: Catch specific exceptions
         log('critical', 'Failed to ensure keys.')
         raise ServerError('Cannot ensure keys.',
                           HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def getRepos(user, token):
+def gin_get_repos(user, token):
     """
     Fetches list of all repositories from user's GIN account.
     """
@@ -301,7 +310,7 @@ def getRepos(user, token):
     ).json()
 
 
-def getRepoData(user, repo, token):
+def gin_get_repo_data(user, repo, token):
     """
     Fetches complete data of a repository from user's GIN account.
     """
@@ -311,7 +320,7 @@ def getRepoData(user, repo, token):
     ).json()
 
 
-def clone(repo, author, path):
+def gin_clone(repo, author, path):
     """
     Clones the repository in question in a temporary location (path).
     """
@@ -322,13 +331,13 @@ def clone(repo, author, path):
     return clone_path
 
 
-def push(path, commitMessage):
+def push(path, commit_message):
     """
     Commits and pushes the updates from temporary location (path) the
     repository is stored at on to the GIN server.
     """
     call(['git', 'add', '.'], cwd=path)
-    call(['git', 'commit', '-m', commitMessage], cwd=path)
+    call(['git', 'commit', '-m', commit_message], cwd=path)
     call(['git', 'push'], cwd=path)
     log("info", "Updates pushed from {}".format(path))
 
@@ -341,12 +350,12 @@ def clean(path):
     log("debug", "Repo cleaned from {}".format(path))
 
 
-def configure(repoName, userInputs, backPushFiles, annexFiles, commitMessage,
-              notifications, token, username, workflow):
+def configure(repo_name, user_commands, output_files, input_files,
+              commit_message, notifications, token, username, workflow):
     """
     First line of action!
 
-    This function is reposible for integrating the entire workflow
+    This function is responsible for integrating the entire workflow
     together and executing the following in chronological order:
 
         1. Fetches the repository data for repo in question.
@@ -369,7 +378,7 @@ def configure(repoName, userInputs, backPushFiles, annexFiles, commitMessage,
         6. Deletes the cloned repository data and deletes temporary location.
     """
     try:
-        repo = getRepoData(username, repoName, token)
+        repo = gin_get_repo_data(username, repo_name, token)
     except Exception as e:
         log('error', e)
         raise ServiceError(e)
@@ -378,9 +387,16 @@ def configure(repoName, userInputs, backPushFiles, annexFiles, commitMessage,
     os.environ['GIT_SSH_COMMAND'] = f"ssh -i {keypath}"
 
     with tempfile.TemporaryDirectory() as temp_clone_path:
-        clone_path = clone(repo, username, temp_clone_path)
-        ensureConfig(config_path=clone_path, workflow=workflow,
-                     userInputs=userInputs, annexFiles=annexFiles,
-                     backPushFiles=backPushFiles, notifications=notifications)
-        push(clone_path, commitMessage)
+        clone_path = gin_clone(repo, username, temp_clone_path)
+        create_drone_file(config_path=clone_path, workflow=workflow,
+                          user_commands=user_commands, input_files=input_files,
+                          output_files=output_files,
+                          notifications=notifications)
+        push(clone_path, commit_message)
         clean(clone_path)
+
+    # configuration written; enable repository on Drone
+    drone_enable_repo(repo)
+    # add secrets to new drone repository
+    with open(keypath) as key:
+        drone_write_secret(key.read(), repo)

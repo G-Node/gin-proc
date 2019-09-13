@@ -8,11 +8,11 @@
       <sui-grid-column :width="8" verticalAlign="middle">
         <sui-form equalWidth @submit="login" @submit.stop.prevent>
             <sui-form-field>
-              <sui-input v-model="loginData.username" type="text" placeholder="Elon Musk" icon="user" />
+              <sui-input v-model="loginData.username" type="text" placeholder="GIN Username" icon="user" />
             </sui-form-field>
             <sui-form-field>
               <sui-input v-model="loginData.password" type="password"
-                placeholder="I'm_the_greatest_inventor_of_all_time" icon="key" />
+                placeholder="GIN password" icon="key" />
             </sui-form-field>
           <sui-form-field>
             <sui-label style="font-family: Menlo, Consolas, DejaVu Sans Mono, monospace;">Use your GIN credentials only.

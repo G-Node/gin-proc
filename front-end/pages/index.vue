@@ -185,7 +185,7 @@
             'value': false,
             'icon': 'slack hash'
           }],
-          commitMessage: 'gin-proc is awesome',
+          commitMessage: 'Create/update drone.yml',
         },
         success_message: {
           visible: false,
@@ -241,7 +241,7 @@
             'value': false,
             'icon': 'slack hash'
           }],
-          commitMessage: 'gin-proc is awesome',
+          commitMessage: 'Create/update drone.yml',
           workflow: 'custom',
           },
           this.userInputs = {},
