@@ -16,7 +16,7 @@
     "@nuxtjs/auth": "^4.8.3",
     "@nuxtjs/axios": "^5.5.4",
     "@nuxtjs/pwa": "^2.6.0",
-    "nuxt": "^2.9.2",
+    "nuxt": "^2.15.8",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-vue": "^0.8.1"
   },
