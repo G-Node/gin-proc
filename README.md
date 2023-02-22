@@ -1,5 +1,10 @@
 # gin-proc Microservice for [GIN](https://gin.g-node.org)
 
+---
+The gin-proc project is currently not under development and will not
+be updated in the forseeable future.
+---
+
 <br>
 
 [![G-Node](./images/favicon.png)](https://gin.g-node.org)
